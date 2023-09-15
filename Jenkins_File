@@ -1,0 +1,46 @@
+
+//pipeline script for demo_pipelineJob:
+//====================================
+
+node{
+
+def mavenHome = tool name: 'apache-maven-3.9.4'
+
+stage('1CodeClone'){
+	git 'https://github.com/NebaNadine1/LandmarkTechnology-maven-web-application.git'
+}
+
+stage('2MavenBuild'){
+	bat "${mavenHome}/bin/mvn package"
+}
+
+stage('3CodeQualityAnalysis'){
+	bat "${mavenHome}/bin/mvn sonar:sonar"
+}
+
+stage('3Backup2Nexus'){
+	bat "${mavenHome}/bin/mvn deploy"
+}
+
+stage('5Deploy2UAT'){
+	deploy adapters: [tomcat9(credentialsId: 'tomcat_credentials', path: '', url: 'http://localhost:8080/')], contextPath: null, war: 'target/*.war'
+}
+
+stage('6ManualApprover'){
+	bat "echo 'Application Deploy to be Manually Approve' "
+	timeout(time:30, unit:'MINUTES'){
+	input message: 'Application about to be deploy please check and verified'
+	}
+	}
+
+	stage('7Deploy2Prod'){
+	deploy adapters: [tomcat9(credentialsId: 'tomcat_credentials', path: '', url: 'http://localhost:8080/')], contextPath: null, war: 'target/*.war'
+}
+
+ stage('8EmailExtention'){
+ emailext body: '''The app has been deploy
+
+Set up all monitoring system to monitor the traffic and performance''', recipientProviders: [contributor(), developers()], subject: 'App Status', to: 'nadinemankaa@gmail.com'
+ }
+
+}
